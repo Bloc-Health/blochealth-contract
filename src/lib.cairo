@@ -36,9 +36,7 @@ pub mod BlocHealth {
         staff_count: u64,
         patient_count: u64,
         owner: ContractAddress,
-        // roles: Map<ContractAddress, Staff>,
         patient_addresses: Array<felt252>,
-        // patients: Map<felt252, Patient>,
     }
 
     #[derive(Drop, Serde)]
@@ -58,7 +56,6 @@ pub mod BlocHealth {
         medical_info: MedicalInfo,
         appointment_count: u32,
         appointment_dates: Array<u64>,
-        // appointments: Map<u64, Appointment>,
         emergency_contacts: Array<EmergencyContact>,
     }
 
@@ -78,9 +75,8 @@ pub mod BlocHealth {
         current_medications: felt252,
         allergies: felt252,
         medical_history_file: felt252,
-        // chronic_conditions: Array<felt252>,
-    // surgeries: Array<felt252>,
-    // immunizations: Array<felt252>
+        chronic_conditions: Option<Array<felt252>>,
+        surgeries: Option<Array<felt252>>,
     }
 
     #[derive(Drop, Serde)]
@@ -88,7 +84,7 @@ pub mod BlocHealth {
         name: felt252,
         phone: felt252,
         residential_address: felt252,
-        // relationship: felt252,
+        relationship: Option<felt252>,
     }
 
     #[derive(Drop, Serde)]
@@ -98,24 +94,19 @@ pub mod BlocHealth {
         treatment_plan: felt252,
         date: u64,
         reason: felt252,
-        // lab_results: Array<felt252>,
+        lab_results: Option<Array<felt252>>,
     }
-
-    // #[derive(Drop, Serde)]
-    // struct MedicalRecord {
-    //     date: u64,
-    //     lab_results: Array<felt252>,
-    //     diagnosis: felt252,
-    //     treatment: felt252,
-    //     doctor: ContractAddress,
-    //     hospital: Hospital,
-    // }
 
     #[storage]
     struct Storage {
         pub owner: ContractAddress,
         pub hospital_count: u256,
         pub hospitals: Map<felt252, Hospital>,
+        pub hospital_staff: Map<(felt252, ContractAddress), Staff>, // hospital_id
+        pub hospital_patients: Map<(felt252, ContractAddress), Patient>, // hospital_id
+        pub patient_appointments: Map<
+            (felt252, felt252, u64), Appointment,
+        > // hospital_id, patient_id, appointment_id
     }
 
     #[constructor]
