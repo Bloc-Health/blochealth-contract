@@ -21,7 +21,6 @@ This Cairo smart contract provides functionalities for:
 
 - Cairo 1.0
 - Starknet (SN Foundry or Scarb)
-- Zeroable + Traits
 - CLI tools (`snforge`, `scarb`, `starkli`)
 
 ---
