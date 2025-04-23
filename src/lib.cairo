@@ -1,4 +1,7 @@
 use starknet::ContractAddress;
+// use BlocHealth::{
+//     AccessRoles, Gender, PatientReturnInfo, EmergencyContact, ContactInfo, MedicalInfo, Appointment,
+// };
 
 #[starknet::interface]
 pub trait IBlocHealth<TContractState> {
@@ -13,7 +16,7 @@ pub mod BlocHealth {
     use core::starknet::get_caller_address;
 
     #[derive(Drop, Serde, PartialEq, Copy)]
-    enum AccessRoles {
+    pub enum AccessRoles {
         Admin,
         Doctor,
         Nurse,
@@ -21,7 +24,7 @@ pub mod BlocHealth {
     }
 
     #[derive(Drop, Serde, PartialEq, Copy)]
-    enum Gender {
+    pub enum Gender {
         Male,
         Female,
         Other,
@@ -60,7 +63,16 @@ pub mod BlocHealth {
     }
 
     #[derive(Drop, Serde)]
-    struct ContactInfo {
+    pub struct PatientReturnInfo {
+        name: felt252,
+        dob: u64,
+        gender: Gender,
+        contact_info: ContactInfo,
+        medical_info: MedicalInfo,
+    }
+
+    #[derive(Drop, Serde)]
+    pub struct ContactInfo {
         phone: felt252,
         email: felt252,
         residential_address: felt252,
@@ -71,7 +83,7 @@ pub mod BlocHealth {
     }
 
     #[derive(Drop, Serde)]
-    struct MedicalInfo {
+    pub struct MedicalInfo {
         current_medications: felt252,
         allergies: felt252,
         medical_history_file: felt252,
@@ -80,7 +92,7 @@ pub mod BlocHealth {
     }
 
     #[derive(Drop, Serde)]
-    struct EmergencyContact {
+    pub struct EmergencyContact {
         name: felt252,
         phone: felt252,
         residential_address: felt252,
@@ -88,7 +100,7 @@ pub mod BlocHealth {
     }
 
     #[derive(Drop, Serde)]
-    struct Appointment {
+    pub struct Appointment {
         current_medications: felt252,
         diagnosis: felt252,
         treatment_plan: felt252,
@@ -107,6 +119,46 @@ pub mod BlocHealth {
         pub patient_appointments: Map<
             (felt252, felt252, u64), Appointment,
         > // hospital_id, patient_id, appointment_id
+    }
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        HospitalCreated: HospitalCreated,
+        StaffAdded: StaffAdded,
+        PatientAdded: PatientAdded,
+        VisitRecordCreated: VisitRecordCreated,
+        // AppointmentScheduled: AppointmentScheduled,
+    // AppointmentCancelled: AppointmentCancelled,
+    // AppointmentRescheduled: AppointmentRescheduled,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct HospitalCreated {
+        name: felt252,
+        hospital_id: felt252,
+        owner: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct StaffAdded {
+        hospital_id: felt252,
+        address: ContractAddress,
+        role: AccessRoles,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct PatientAdded {
+        name: felt252,
+        hospital_id: felt252,
+        patient: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct VisitRecordCreated {
+        name: felt252,
+        patient: ContractAddress,
+        date: u64,
     }
 
     #[constructor]
