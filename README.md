@@ -35,48 +35,6 @@ This Cairo smart contract provides functionalities for:
 - ✅ Zeroable Defaults for Struct Fields
 - 📥 Whitelisted Access for Hospital Staff
 
----
-
-## 📂 Contract Structure
-
-### Enums
-
-```rust
-#[derive(Copy, Drop, Serde, Zeroable)]
-enum Gender {
-    Male,
-    Female,
-    Other,
-}
-```
-
-### Structs
-
-```rust
-struct EmergencyContact {
-    name: felt252,
-    phone: felt252,
-}
-
-struct Appointment {
-    date: u64,
-    reason: felt252,
-}
-```
-
-### Patient Record
-
-```rust
-struct Patient {
-    full_name: felt252,
-    gender: Gender,
-    medications: Array<felt252>,
-    medical_history: felt252,
-    emergency_contacts: Array<EmergencyContact>,
-    appointments: Array<Appointment>,
-    published: bool,
-}
-```
 
 ---
 
@@ -110,7 +68,6 @@ scarb build
 Make sure you have `snforge` installed:
 
 ```bash
-cargo install --locked snforge
 snforge test
 ```
 
