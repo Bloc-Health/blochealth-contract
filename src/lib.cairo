@@ -43,7 +43,7 @@ pub mod BlocHealth {
         staff_count: u64,
         patient_count: u64,
         owner: ContractAddress,
-        // patient_addresses: Vec<ContractAddress>,
+        // patient_addresses: Vec<felt252>,
     }
 
     #[derive(Drop, Serde)]
