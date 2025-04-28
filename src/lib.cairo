@@ -6,14 +6,18 @@ use starknet::ContractAddress;
 #[starknet::interface]
 pub trait IBlocHealth<TContractState> {
     fn get_owner(self: @TContractState) -> ContractAddress;
+    fn add_hospital(ref self: TContractState, name: felt252, location: felt252, doe: u64, hospital_reg_no: u64, owner: ContractAddress);
 }
 
 #[starknet::contract]
 pub mod BlocHealth {
     use super::IBlocHealth;
-    use core::starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess, Map};
+    use core::starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Map, Vec, VecTrait, MutableVecTrait};
     use core::starknet::contract_address::ContractAddress;
     use core::starknet::get_caller_address;
+    use core::poseidon::PoseidonTrait;
+    use core::hash::{HashStateTrait, HashStateExTrait};
+    use core::starknet::storage_access::Store;
 
     #[derive(Drop, Serde, PartialEq, Copy)]
     pub enum AccessRoles {
@@ -30,7 +34,7 @@ pub mod BlocHealth {
         Other,
     }
 
-    #[derive(Drop, Serde)]
+    #[derive(Drop, Serde, starknet::Store)]
     struct Hospital {
         name: felt252,
         location: felt252,
@@ -39,7 +43,7 @@ pub mod BlocHealth {
         staff_count: u64,
         patient_count: u64,
         owner: ContractAddress,
-        patient_addresses: Array<felt252>,
+        // patient_addresses: Vec<felt252>,
     }
 
     #[derive(Drop, Serde)]
@@ -170,6 +174,33 @@ pub mod BlocHealth {
     impl BlocHealthImpl of IBlocHealth<ContractState> {
         fn get_owner(self: @ContractState) -> ContractAddress {
             self.owner.read()
+        }
+        fn add_hospital(ref self: ContractState, name: felt252, location: felt252, doe: u64, hospital_reg_no: u64, owner: ContractAddress) {
+            let hospital = Hospital {
+                name,
+                location,
+                doe,
+                hospital_reg_no,
+                owner,
+                staff_count: 0,
+                patient_count: 0,
+                // patient_addresses: array![],
+            };
+
+            let hospital_id: felt252 = PoseidonTrait::new().update_with(hospital_reg_no).finalize();
+
+            // Store the hospital in the storage map
+            self.hospitals.entry(hospital_id).write(hospital);
+
+            // Increment the hospital count
+            self.hospital_count.write(self.hospital_count.read() + 1);
+
+            // Emit an event for the created hospital
+            self.emit(HospitalCreated {
+                name,
+                hospital_id,
+                owner,
+            });
         }
     }
 }
