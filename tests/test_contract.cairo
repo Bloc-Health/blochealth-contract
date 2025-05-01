@@ -48,9 +48,9 @@ fn test_add_hospital() {
                     contract_address,
                     BlocHealth::Event::HospitalCreated(
                         BlocHealth::HospitalCreated {
-                            name: 'Hospital1',
+                            name: hospital.name,
                             hospital_id,
-                            owner: contract_address_const::<'OWNER'>(),
+                            owner: hospital.owner,
                         },
                     ),
                 ),
