@@ -35,14 +35,14 @@ pub mod BlocHealth {
     }
 
     #[derive(Drop, Serde, starknet::Store)]
-    struct Hospital {
-        name: felt252,
-        location: felt252,
-        doe: u64,
-        hospital_reg_no: u64,
-        staff_count: u64,
-        patient_count: u64,
-        owner: ContractAddress,
+    pub struct Hospital {
+        pub name: felt252,
+        pub location: felt252,
+        pub doe: u64,
+        pub hospital_reg_no: u64,
+        pub staff_count: u64,
+        pub patient_count: u64,
+        pub owner: ContractAddress,
         // patient_addresses: Vec<felt252>,
     }
 
@@ -127,7 +127,7 @@ pub mod BlocHealth {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         HospitalCreated: HospitalCreated,
         StaffAdded: StaffAdded,
         PatientAdded: PatientAdded,
@@ -138,10 +138,10 @@ pub mod BlocHealth {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct HospitalCreated {
-        name: felt252,
-        hospital_id: felt252,
-        owner: ContractAddress,
+    pub struct HospitalCreated {
+        pub name: felt252,
+        pub hospital_id: felt252,
+        pub owner: ContractAddress,
     }
 
     #[derive(Drop, starknet::Event)]
