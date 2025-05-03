@@ -1,9 +1,6 @@
 use starknet::ContractAddress;
 use BlocHealth::Hospital;
-// use BlocHealth::{
-//     AccessRoles, Gender, PatientReturnInfo, EmergencyContact, ContactInfo, MedicalInfo,
-//     Appointment,
-// };
+use BlocHealth::AccessRoles;
 
 #[starknet::interface]
 pub trait IBlocHealth<TContractState> {
@@ -22,6 +19,15 @@ pub trait IBlocHealth<TContractState> {
     fn add_hospital_pattient_address(
         ref self: TContractState, hospital_id: felt252, patient_address: felt252,
     );
+    fn add_staff(
+        ref self: TContractState,
+        hospital_id: felt252,
+        staff_address: ContractAddress,
+        role: AccessRoles,
+        name: felt252,
+        email: felt252,
+        phone: felt252,
+    );
 }
 
 #[starknet::contract]
@@ -36,7 +42,8 @@ pub mod BlocHealth {
     use core::poseidon::PoseidonTrait;
     use core::hash::{HashStateTrait, HashStateExTrait};
 
-    #[derive(Drop, Serde, PartialEq, Copy)]
+    #[allow(starknet::store_no_default_variant)]
+    #[derive(Drop, Serde, PartialEq, Copy, starknet::Store)]
     pub enum AccessRoles {
         Admin,
         Doctor,
@@ -63,7 +70,7 @@ pub mod BlocHealth {
         // patient_addresses: Vec<felt252>,
     }
 
-    #[derive(Drop, Serde)]
+    #[derive(Drop, Serde, starknet::Store)]
     struct Staff {
         name: felt252,
         role: AccessRoles,
@@ -131,6 +138,7 @@ pub mod BlocHealth {
     }
 
     #[storage]
+    #[allow(starknet::invalid_storage_member_types)]
     struct Storage {
         pub owner: ContractAddress,
         pub hospital_count: u256,
@@ -163,10 +171,10 @@ pub mod BlocHealth {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct StaffAdded {
-        hospital_id: felt252,
-        address: ContractAddress,
-        role: AccessRoles,
+    pub struct StaffAdded {
+        pub hospital_id: felt252,
+        pub address: ContractAddress,
+        pub role: AccessRoles,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -263,6 +271,33 @@ pub mod BlocHealth {
             };
 
             self.hospital_patients_addresses.entry(hospital_id).append().write(patient_address);
+        }
+
+        fn add_staff(
+            ref self: ContractState,
+            hospital_id: felt252,
+            staff_address: ContractAddress,
+            role: AccessRoles,
+            name: felt252,
+            email: felt252,
+            phone: felt252,
+        ) {
+            // 1. Fetch and verify hospital owner
+            let mut hospital = self.hospitals.entry(hospital_id).read();
+            if get_caller_address() != hospital.owner {
+                panic!("Only the hospital owner can add staff");
+            }
+
+            // 2. Create and store the Staff record
+            let staff = Staff { name, role, email, phone };
+            self.hospital_staff.entry((hospital_id, staff_address)).write(staff);
+
+            // 3. Increment staff_count and update hospital
+            hospital.staff_count += 1_u64;
+            self.hospitals.entry(hospital_id).write(hospital);
+
+            // 4. Emit the StaffAdded event
+            self.emit(StaffAdded { hospital_id, address: staff_address, role });
         }
     }
 }
