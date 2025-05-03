@@ -1,59 +1,89 @@
-use blochealth_contract::IBlocHealthDispatcherTrait;
+use blochealth_contract::{BlocHealth, IBlocHealthDispatcher, IBlocHealthDispatcherTrait};
 use starknet::{ContractAddress, contract_address_const};
 use core::poseidon::PoseidonTrait;
 use core::hash::{HashStateTrait, HashStateExTrait};
-
 use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait, spy_events, EventSpyAssertionsTrait,
+    declare, spy_events, ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait,
 };
 
-use blochealth_contract::{BlocHealth, IBlocHealthDispatcher};
-
+/// Deploys a fresh instance of the BlocHealth contract.
 fn deploy_contract() -> ContractAddress {
     let contract = declare("BlocHealth").unwrap().contract_class();
-    let (contract_address, _) = contract.deploy(@array![]).unwrap();
-    contract_address
+    let (address, _) = contract.deploy(@array![]).unwrap();
+    address
+}
+
+/// Helper to register a hospital and return its generated ID.
+fn register_hospital(dispatcher: IBlocHealthDispatcher, owner: ContractAddress) -> felt252 {
+    let reg_no = 42_u64;
+    dispatcher.add_hospital('MyHospital', 'MyLocation', 1_u64, reg_no, owner);
+
+    // Calculate the hospital ID the same way the contract does
+    let mut state = PoseidonTrait::new();
+    state = state.update_with(reg_no);
+    state.finalize()
 }
 
 #[test]
-fn test_add_hospital() {
-    let contract_address = deploy_contract();
-    let dispatcher = IBlocHealthDispatcher { contract_address };
+fn test_add_hospital_emits_event() {
+    let addr = deploy_contract();
+    let dispatcher = IBlocHealthDispatcher { contract_address: addr };
     let mut spy = spy_events();
-    let hospital = BlocHealth::Hospital {
-        name: 'Hospital1',
-        location: 'Loc1',
-        doe: 1,
-        hospital_reg_no: 9,
-        staff_count: 0,
-        patient_count: 0,
-        owner: contract_address_const::<'OWNER'>(),
-    };
+    let owner = dispatcher.get_owner();
 
-    dispatcher
-        .add_hospital(
-            hospital.name,
-            hospital.location,
-            hospital.doe,
-            hospital.hospital_reg_no,
-            hospital.owner,
-        );
-    let hospital_id: felt252 = PoseidonTrait::new()
-        .update_with(hospital.hospital_reg_no)
-        .finalize();
-    spy
-        .assert_emitted(
-            @array![
-                (
-                    contract_address,
-                    BlocHealth::Event::HospitalCreated(
-                        BlocHealth::HospitalCreated {
-                            name: hospital.name,
-                            hospital_id,
-                            owner: hospital.owner,
-                        },
-                    ),
-                ),
-            ],
-        );
+    let hospital_id = register_hospital(dispatcher, owner);
+
+    spy.assert_emitted(
+        @array![
+            (
+                addr,
+                BlocHealth::Event::HospitalCreated(
+                    BlocHealth::HospitalCreated {
+                        name: 'MyHospital',
+                        hospital_id,
+                        owner,
+                    }
+                )
+            )
+        ],
+    );
 }
+
+#[test]
+fn test_add_staff_success() {
+    let addr = deploy_contract();
+    let dispatcher = IBlocHealthDispatcher { contract_address: addr };
+    let mut spy = spy_events();
+    let owner = dispatcher.get_owner();
+
+    let hospital_id = register_hospital(dispatcher, owner);
+
+    let staff_addr = contract_address_const::<'STAFF1'>();
+    dispatcher.add_staff(
+        hospital_id,
+        staff_addr,
+        BlocHealth::AccessRoles::Doctor,
+        'DrAlice',
+        'alice@hospital.test',
+        '555-1234',
+    );
+
+    spy.assert_emitted(
+        @array![
+            (
+                addr,
+                BlocHealth::Event::StaffAdded(
+                    BlocHealth::StaffAdded {
+                        hospital_id,
+                        address: staff_addr, // Changed from staff_address to address
+                        role: BlocHealth::AccessRoles::Doctor,
+                    }
+                )
+            )
+        ],
+    );
+
+    let hospital = dispatcher.get_hospital(hospital_id);
+    assert_eq!(hospital.staff_count, 1_u64);
+}
+
