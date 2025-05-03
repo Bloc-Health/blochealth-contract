@@ -1,23 +1,40 @@
 use starknet::ContractAddress;
+use BlocHealth::Hospital;
 // use BlocHealth::{
-//     AccessRoles, Gender, PatientReturnInfo, EmergencyContact, ContactInfo, MedicalInfo, Appointment,
+//     AccessRoles, Gender, PatientReturnInfo, EmergencyContact, ContactInfo, MedicalInfo,
+//     Appointment,
 // };
 
 #[starknet::interface]
 pub trait IBlocHealth<TContractState> {
     fn get_owner(self: @TContractState) -> ContractAddress;
-    fn add_hospital(ref self: TContractState, name: felt252, location: felt252, doe: u64, hospital_reg_no: u64, owner: ContractAddress);
+    fn hospital_exists(self: @TContractState, hospital_reg_no: u64) -> bool;
+    fn add_hospital(
+        ref self: TContractState,
+        name: felt252,
+        location: felt252,
+        doe: u64,
+        hospital_reg_no: u64,
+        owner: ContractAddress,
+    ) -> felt252;
+    fn get_hospital(self: @TContractState, hospital_id: felt252) -> Hospital;
+    fn get_hospital_count(self: @TContractState) -> u256;
+    fn add_hospital_pattient_address(
+        ref self: TContractState, hospital_id: felt252, patient_address: felt252,
+    );
 }
 
 #[starknet::contract]
 pub mod BlocHealth {
     use super::IBlocHealth;
-    use core::starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Map, Vec, VecTrait, MutableVecTrait};
+    use core::starknet::storage::{
+        StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Map, Vec,
+        MutableVecTrait,
+    };
     use core::starknet::contract_address::ContractAddress;
     use core::starknet::get_caller_address;
     use core::poseidon::PoseidonTrait;
     use core::hash::{HashStateTrait, HashStateExTrait};
-    use core::starknet::storage_access::Store;
 
     #[derive(Drop, Serde, PartialEq, Copy)]
     pub enum AccessRoles {
@@ -122,7 +139,8 @@ pub mod BlocHealth {
         pub hospital_patients: Map<(felt252, ContractAddress), Patient>, // hospital_id
         pub patient_appointments: Map<
             (felt252, felt252, u64), Appointment,
-        > // hospital_id, patient_id, appointment_id
+        >, // hospital_id, patient_id, appointment_id
+        pub hospital_patients_addresses: Map<felt252, Vec<felt252>> // hospital_id
     }
 
     #[event]
@@ -170,37 +188,81 @@ pub mod BlocHealth {
         self.owner.write(get_caller_address());
     }
 
+
     #[abi(embed_v0)]
     impl BlocHealthImpl of IBlocHealth<ContractState> {
         fn get_owner(self: @ContractState) -> ContractAddress {
             self.owner.read()
         }
-        fn add_hospital(ref self: ContractState, name: felt252, location: felt252, doe: u64, hospital_reg_no: u64, owner: ContractAddress) {
+
+        fn hospital_exists(self: @ContractState, hospital_reg_no: u64) -> bool {
+            let hospital_id: felt252 = PoseidonTrait::new().update_with(hospital_reg_no).finalize();
+            let hospital = self.hospitals.entry(hospital_id).read();
+
+            // Check if the hospital ID exists in the storage map
+            if hospital.hospital_reg_no == hospital_reg_no {
+                return true;
+            }
+            false
+        }
+
+        fn add_hospital(
+            ref self: ContractState,
+            name: felt252,
+            location: felt252,
+            doe: u64,
+            hospital_reg_no: u64,
+            owner: ContractAddress,
+        ) -> felt252 {
+            if self.hospital_exists(hospital_reg_no) {
+                panic!("Hospital with this registration number already exists");
+            }
+
             let hospital = Hospital {
-                name,
-                location,
-                doe,
-                hospital_reg_no,
-                owner,
-                staff_count: 0,
-                patient_count: 0,
-                // patient_addresses: array![],
+                name, location, doe, hospital_reg_no, owner, staff_count: 0, patient_count: 0,
             };
 
             let hospital_id: felt252 = PoseidonTrait::new().update_with(hospital_reg_no).finalize();
 
-            // Store the hospital in the storage map
             self.hospitals.entry(hospital_id).write(hospital);
 
-            // Increment the hospital count
             self.hospital_count.write(self.hospital_count.read() + 1);
 
-            // Emit an event for the created hospital
-            self.emit(HospitalCreated {
-                name,
-                hospital_id,
-                owner,
-            });
+            self.emit(HospitalCreated { name, hospital_id, owner });
+
+            hospital_id
+        }
+
+        fn get_hospital(self: @ContractState, hospital_id: felt252) -> Hospital {
+            self.hospitals.entry(hospital_id).read()
+        }
+
+        fn get_hospital_count(self: @ContractState) -> u256 {
+            self.hospital_count.read()
+        }
+
+        fn add_hospital_pattient_address(
+            ref self: ContractState, hospital_id: felt252, patient_address: felt252,
+        ) {
+            // check if hospital owner is calling the function
+            let hospital = self.hospitals.entry(hospital_id).read();
+            if get_caller_address() != hospital.owner {
+                panic!("Only the hospital owner can add patient addresses");
+            }
+
+            // check if patient address is already in the list  
+            let hospital_patients_addresses = self.hospital_patients_addresses.entry(hospital_id);
+            let mut i = 0;
+            let len = hospital_patients_addresses.len();
+            while i < len {
+                let address = hospital_patients_addresses.at(i).read();
+                if address == patient_address {
+                    panic!("Patient address already exists");
+                }
+                i += 1;
+            };
+
+            self.hospital_patients_addresses.entry(hospital_id).append().write(patient_address);
         }
     }
 }
