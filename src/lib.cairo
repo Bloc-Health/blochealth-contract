@@ -16,7 +16,7 @@ pub trait IBlocHealth<TContractState> {
     ) -> felt252;
     fn get_hospital(self: @TContractState, hospital_id: felt252) -> Hospital;
     fn get_hospital_count(self: @TContractState) -> u256;
-    fn add_hospital_pattient_address(
+    fn add_hospital_patient_address(
         ref self: TContractState, hospital_id: felt252, patient_address: felt252,
     );
     fn add_staff(
@@ -138,7 +138,7 @@ pub mod BlocHealth {
     }
 
     #[storage]
-    #[allow(starknet::invalid_storage_member_types)]
+    // #[allow(starknet::invalid_storage_member_types)]
     struct Storage {
         pub owner: ContractAddress,
         pub hospital_count: u256,
@@ -249,7 +249,7 @@ pub mod BlocHealth {
             self.hospital_count.read()
         }
 
-        fn add_hospital_pattient_address(
+        fn add_hospital_patient_address(
             ref self: ContractState, hospital_id: felt252, patient_address: felt252,
         ) {
             // check if hospital owner is calling the function
