@@ -28,6 +28,9 @@ pub trait IBlocHealth<TContractState> {
         email: felt252,
         phone: felt252,
     );
+    fn get_staff_role(
+        self: @TContractState, hospital_id: felt252, staff_address: ContractAddress,
+    ) -> AccessRoles;
 }
 
 #[starknet::contract]
@@ -252,6 +255,7 @@ pub mod BlocHealth {
         fn add_hospital_patient_address(
             ref self: ContractState, hospital_id: felt252, patient_address: felt252,
         ) {
+            self.only_role(hospital_id, AccessRoles::Admin);
             // check if hospital owner is calling the function
             let hospital = self.hospitals.entry(hospital_id).read();
             if get_caller_address() != hospital.owner {
@@ -298,6 +302,23 @@ pub mod BlocHealth {
 
             // 4. Emit the StaffAdded event
             self.emit(StaffAdded { hospital_id, address: staff_address, role });
+        }
+        fn get_staff_role(
+            self: @ContractState, hospital_id: felt252, staff_address: ContractAddress,
+        ) -> AccessRoles {
+            let staff = self.hospital_staff.entry((hospital_id, staff_address)).read();
+            staff.role
+        }
+    }
+    #[generate_trait]
+    impl InternalFunctions of InternalFunctionsTrait {
+        // Internal function for role verification
+        fn only_role(self: @ContractState, hospital_id: felt252, expected_role: AccessRoles) {
+            let caller_address = get_caller_address();
+            let staff = self.hospital_staff.entry((hospital_id, caller_address)).read();
+            if staff.role != expected_role {
+                panic!("Caller does not have the required role");
+            }
         }
     }
 }
